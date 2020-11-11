@@ -85,6 +85,7 @@
     <Compile Include="DeltaPackage.cs" />
     <Compile Include="EnumerableExtensions.cs" />
     <Compile Include="FileDownloader.cs" />
+    <Compile Include="IconHelper.cs" />
     <Compile Include="IUpdateManager.cs" />
     <Compile Include="MarkdownSharp.cs" />
     <Compile Include="NativeMethods.cs" />

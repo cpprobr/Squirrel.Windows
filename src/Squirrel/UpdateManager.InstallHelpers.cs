@@ -1,10 +1,7 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Drawing;
 using System.IO;
 using System.Linq;
-using System.Net;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Win32;
@@ -38,9 +35,6 @@ namespace Squirrel
                 // Download the icon and PNG => ICO it. If this doesn't work, who cares
                 var pkgPath = Path.Combine(rootAppDirectory, "packages", latest.Filename);
                 var zp = new ZipPackage(pkgPath);
-                    
-                var targetPng = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".png");
-                var targetIco = Path.Combine(rootAppDirectory, "app.ico");
 
                 // NB: Sometimes the Uninstall key doesn't exist
                 using (var parentKey =
@@ -50,28 +44,56 @@ namespace Squirrel
                 var key = RegistryKey.OpenBaseKey(RegistryHive.CurrentUser, RegistryView.Default)
                     .CreateSubKey(uninstallRegSubKey + "\\" + applicationName, RegistryKeyPermissionCheck.ReadWriteSubTree);
 
-                if (zp.IconUrl != null && !File.Exists(targetIco)) {
-                    try {
-                        using (var wc = Utility.CreateWebClient()) { 
-                            await wc.DownloadFileTaskAsync(zp.IconUrl, targetPng);
-                            using (var fs = new FileStream(targetIco, FileMode.Create)) {
-                                if (zp.IconUrl.AbsolutePath.EndsWith("ico")) {
-                                    var bytes = File.ReadAllBytes(targetPng);
-                                    fs.Write(bytes, 0, bytes.Length);
-                                } else {
-                                    using (var bmp = (Bitmap)Image.FromFile(targetPng))
-                                    using (var ico = Icon.FromHandle(bmp.GetHicon())) {
-                                        ico.Save(fs);
-                                    }
-                                }
+                async Task DefineDisplayIcon(string inputFile, Stream inputStream)
+                {
+                    try
+                    {
+                        var outputFile = Path.Combine(rootAppDirectory, "app.ico");
 
-                                key.SetValue("DisplayIcon", targetIco, RegistryValueKind.String);
-                            }
+                        using (var outputStream = new FileStream(outputFile, FileMode.Create))
+                        {
+                            if (inputFile.EndsWith("ico"))
+                                await inputStream.CopyToAsync(outputStream);
+                            else
+                                IconHelper.ConvertToIcon(inputStream, outputStream, 64);
                         }
-                    } catch(Exception ex) {
+
+                        key.SetValue("DisplayIcon", outputFile, RegistryValueKind.String);
+                    }
+                    catch (Exception ex)
+                    {
                         this.Log().InfoException("Couldn't write uninstall icon, don't care", ex);
+                    }
+                }
+
+                if (zp.IconUrl != null) {
+                    var targetPng = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".png");
+
+                    try {
+                        using (var wc = Utility.CreateWebClient())
+                        {
+                            await wc.DownloadFileTaskAsync(zp.IconUrl, targetPng);
+                        }
+
+                        using (var inputStream = File.OpenRead(targetPng))
+                        {
+                            await DefineDisplayIcon(targetPng, inputStream);
+                        }
                     } finally {
                         File.Delete(targetPng);
+                    }
+                }
+
+                if (zp.Icon != null)
+                {
+                    var iconFile = zp.GetFiles().FirstOrDefault(x => x.Path == zp.Icon);
+
+                    if (iconFile != null)
+                    {
+                        using (var inputStream = iconFile.GetStream())
+                        {
+                            await DefineDisplayIcon(iconFile.Path, inputStream);
+                        }
                     }
                 }
 
