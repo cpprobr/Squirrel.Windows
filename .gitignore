@@ -182,3 +182,5 @@ tests/Test.xml
 *.db
 *.opendb
 .vs/
+
+.idea/
