@@ -41,7 +41,7 @@ namespace Squirrel
                     shouldInitialize = true;
                 }
 
-                if (shouldInitialize) await initializeClientAppDirectory();
+                if (shouldInitialize) await initializeClientAppDirectory(localReleaseFile);
 
                 string releaseFile;
 
@@ -131,7 +131,7 @@ namespace Squirrel
                 return ret;
             }
 
-            async Task initializeClientAppDirectory()
+            async Task initializeClientAppDirectory(string localReleaseFile)
             {
                 // On bootstrap, we won't have any of our directories, create them
                 var pkgDir = Path.Combine(rootAppDirectory, "packages");
@@ -140,6 +140,7 @@ namespace Squirrel
                 }
 
                 Directory.CreateDirectory(pkgDir);
+                File.Create(localReleaseFile).Dispose();
             }
 
             UpdateInfo determineUpdateInfo(IEnumerable<ReleaseEntry> localReleases, IEnumerable<ReleaseEntry> remoteReleases, bool ignoreDeltaUpdates)
