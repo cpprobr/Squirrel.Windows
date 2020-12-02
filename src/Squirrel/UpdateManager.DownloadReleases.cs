@@ -32,6 +32,10 @@ namespace Squirrel
                     // From Internet
                     await releasesToDownload.ForEachAsync(async x => {
                         var targetFile = Path.Combine(packagesDirectory, x.Filename);
+
+                        if (CheckIfAlreadyDownloaded(x, targetFile))
+                            return;
+
                         double component = 0;
                         await downloadRelease(updateUrlOrPath, x, urlDownloader, targetFile, p => {
                             lock (progress) {
@@ -48,6 +52,9 @@ namespace Squirrel
                     await releasesToDownload.ForEachAsync(x => {
                         var targetFile = Path.Combine(packagesDirectory, x.Filename);
 
+                        if (CheckIfAlreadyDownloaded(x, targetFile))
+                            return;
+
                         File.Copy(
                             Path.Combine(updateUrlOrPath, x.Filename),
                             targetFile,
@@ -56,6 +63,23 @@ namespace Squirrel
                         lock (progress) progress((int)Math.Round(current += toIncrement));
                         checksumPackage(x);
                     });
+                }
+            }
+
+            private bool CheckIfAlreadyDownloaded(ReleaseEntry releaseEntry, string targetFile)
+            {
+                if (!File.Exists(targetFile))
+                    return false;
+
+                try
+                {
+                    checksumPackage(releaseEntry);
+                    return true;
+                }
+                catch (Exception)
+                {
+                    // Needs to download again
+                    return false;
                 }
             }
 
